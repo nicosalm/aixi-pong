@@ -1,4 +1,29 @@
 use macroquad::prelude::*;
+use crate::common::Observation;
+use crate::config;
+
+#[derive(Clone, Copy)]
+pub struct GameState {
+    pub ball_x: f32,
+    pub ball_y: f32,
+    pub ball_vel_x: f32,
+    pub ball_vel_y: f32,
+    pub left_paddle_y: f32,
+    pub right_paddle_y: f32,
+}
+
+impl GameState {
+    pub fn to_observation(&self) -> Observation {
+        Observation {
+            ball_x: self.ball_x,
+            ball_y: self.ball_y,
+            ball_vel_x: self.ball_vel_x,
+            ball_vel_y: self.ball_vel_y,
+            paddle_y: self.right_paddle_y,
+            opponent_paddle_y: self.left_paddle_y,
+        }
+    }
+}
 
 struct Ball {
     x: f32,
@@ -8,14 +33,19 @@ struct Ball {
     size: f32,
 }
 
+pub enum PaddleSide {
+    Left,
+    Right,
+}
+
 impl Ball {
     fn new() -> Self {
         Ball {
             x: screen_width() / 2.0,
             y: screen_height() / 2.0,
-            vel_x: 300.0,
-            vel_y: 200.0,
-            size: 10.0,
+            vel_x: config::BALL_VEL_X,
+            vel_y: config::BALL_VEL_Y,
+            size: config::BALL_SIZE,
         }
     }
 
@@ -30,19 +60,16 @@ impl Ball {
             self.vel_y = -self.vel_y;
         }
 
-        let paddle_width = 20.0;
-        let paddle_height = 100.0;
-
-        if self.x <= paddle_width + self.size
-            && self.y >= left_paddle_y - paddle_height / 2.0
-            && self.y <= left_paddle_y + paddle_height / 2.0
+        if self.x <= config::PADDLE_WIDTH + self.size
+            && self.y >= left_paddle_y - config::PADDLE_HEIGHT / 2.0
+            && self.y <= left_paddle_y + config::PADDLE_HEIGHT / 2.0
             && self.vel_x < 0.0 {
             self.vel_x = -self.vel_x;
         }
 
-        if self.x >= screen_width() - paddle_width - self.size
-            && self.y >= right_paddle_y - paddle_height / 2.0
-            && self.y <= right_paddle_y + paddle_height / 2.0
+        if self.x >= screen_width() - config::PADDLE_WIDTH - self.size
+            && self.y >= right_paddle_y - config::PADDLE_HEIGHT / 2.0
+            && self.y <= right_paddle_y + config::PADDLE_HEIGHT / 2.0
             && self.vel_x > 0.0 {
             self.vel_x = -self.vel_x;
         }
@@ -88,7 +115,7 @@ impl Pong {
             right_paddle_y: screen_height() / 2.0,
             left_score: 0,
             right_score: 0,
-            paddle_speed: 400.0,
+            paddle_speed: config::PADDLE_SPEED,
             score_flash_timer: 0.0,
             last_scorer: None,
         }
@@ -101,17 +128,11 @@ impl Pong {
             self.score_flash_timer -= dt;
         }
 
-        if is_key_down(KeyCode::W) && self.left_paddle_y > 50.0 {
+        if is_key_down(KeyCode::W) && self.left_paddle_y > config::PADDLE_MARGIN {
             self.left_paddle_y -= self.paddle_speed * dt;
         }
-        if is_key_down(KeyCode::S) && self.left_paddle_y < screen_height() - 50.0 {
+        if is_key_down(KeyCode::S) && self.left_paddle_y < screen_height() - config::PADDLE_MARGIN {
             self.left_paddle_y += self.paddle_speed * dt;
-        }
-        if is_key_down(KeyCode::Up) && self.right_paddle_y > 50.0 {
-            self.right_paddle_y -= self.paddle_speed * dt;
-        }
-        if is_key_down(KeyCode::Down) && self.right_paddle_y < screen_height() - 50.0 {
-            self.right_paddle_y += self.paddle_speed * dt;
         }
 
         let (left_scored, right_scored) = self.ball.update(dt, self.left_paddle_y, self.right_paddle_y);
@@ -141,41 +162,61 @@ impl Pong {
         }
     }
 
-    fn draw_paddles(&self) {
-        let paddle_width = 20.0;
-        let paddle_height = 100.0;
+    pub fn set_paddle(&mut self, side: PaddleSide, y: f32) {
+        match side {
+            PaddleSide::Left => self.left_paddle_y = y,
+            PaddleSide::Right => self.right_paddle_y = y,
+        }
+    }
 
+    pub fn get_state(&self) -> GameState {
+        GameState {
+            ball_x: self.ball.x,
+            ball_y: self.ball.y,
+            ball_vel_x: self.ball.vel_x,
+            ball_vel_y: self.ball.vel_y,
+            left_paddle_y: self.left_paddle_y,
+            right_paddle_y: self.right_paddle_y,
+        }
+    }
+
+    pub fn get_reward(&self) -> f32 {
+        match self.last_scorer {
+            Some(true) => -1.0,  // left scored, bad for right agent
+            Some(false) => 1.0,  // right scored, good for right agent
+            None => 0.0,         // no score yet
+        }
+    }
+
+    fn draw_paddles(&self) {
         draw_rectangle(
             0.0,
-            self.left_paddle_y - paddle_height / 2.0,
-            paddle_width,
-            paddle_height,
+            self.left_paddle_y - config::PADDLE_HEIGHT / 2.0,
+            config::PADDLE_WIDTH,
+            config::PADDLE_HEIGHT,
             WHITE,
         );
 
         draw_rectangle(
-            screen_width() - paddle_width,
-            self.right_paddle_y - paddle_height / 2.0,
-            paddle_width,
-            paddle_height,
+            screen_width() - config::PADDLE_WIDTH,
+            self.right_paddle_y - config::PADDLE_HEIGHT / 2.0,
+            config::PADDLE_WIDTH,
+            config::PADDLE_HEIGHT,
             WHITE,
         );
     }
 
     fn draw_center_line(&self) {
-        let dash_height = 10.0;
-        let dash_gap = 20.0;
         let center_x = screen_width() / 2.0;
 
         let mut y = 0.0;
         while y < screen_height() {
-            draw_rectangle(center_x - 2.0, y, 4.0, dash_height, WHITE);
-            y += dash_height + dash_gap;
+            draw_rectangle(center_x - 2.0, y, 4.0, config::DASH_HEIGHT, WHITE);
+            y += config::DASH_HEIGHT + config::DASH_GAP;
         }
     }
 
     fn draw_score(&self) {
-        let font_size = 60.0;
         let left_score_text = &self.left_score.to_string();
         let right_score_text = &self.right_score.to_string();
 
@@ -195,7 +236,7 @@ impl Pong {
             left_score_text,
             screen_width() / 4.0,
             80.0,
-            font_size,
+            config::FONT_SIZE,
             left_color,
         );
 
@@ -203,12 +244,12 @@ impl Pong {
             right_score_text,
             3.0 * screen_width() / 4.0,
             80.0,
-            font_size,
+            config::FONT_SIZE,
             right_color,
         );
 
         draw_text(
-            "Left: W/S | Right: Arrow Keys",
+            "Left: W/S | Right: AIXI Agent",
             20.0,
             screen_height() - 20.0,
             20.0,
@@ -221,12 +262,12 @@ impl Pong {
             let fade = self.score_flash_timer;
             let x = if left_scored { screen_width() / 4.0 } else { 3.0 * screen_width() / 4.0 };
 
-            for i in 0..20 {
-                let angle = (i as f32 / 20.0) * 2.0 * std::f32::consts::PI;
-                let distance = (1.0 - fade) * 100.0;
+            for i in 0..config::PARTICLE_COUNT {
+                let angle = (i as f32 / config::PARTICLE_COUNT as f32) * 2.0 * std::f32::consts::PI;
+                let distance = (1.0 - fade) * config::PARTICLE_DISTANCE;
                 let particle_x = x + angle.cos() * distance;
                 let particle_y = 80.0 + angle.sin() * distance;
-                let size = fade * 5.0;
+                let size = fade * config::PARTICLE_SIZE;
 
                 draw_circle(
                     particle_x,
