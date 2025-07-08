@@ -1,6 +1,6 @@
-use macroquad::prelude::*;
 use crate::common::Observation;
 use crate::config;
+use macroquad::prelude::*;
 
 #[derive(Clone, Copy)]
 pub struct GameState {
@@ -63,14 +63,16 @@ impl Ball {
         if self.x <= config::PADDLE_WIDTH + self.size
             && self.y >= left_paddle_y - config::PADDLE_HEIGHT / 2.0
             && self.y <= left_paddle_y + config::PADDLE_HEIGHT / 2.0
-            && self.vel_x < 0.0 {
+            && self.vel_x < 0.0
+        {
             self.vel_x = -self.vel_x;
         }
 
         if self.x >= screen_width() - config::PADDLE_WIDTH - self.size
             && self.y >= right_paddle_y - config::PADDLE_HEIGHT / 2.0
             && self.y <= right_paddle_y + config::PADDLE_HEIGHT / 2.0
-            && self.vel_x > 0.0 {
+            && self.vel_x > 0.0
+        {
             self.vel_x = -self.vel_x;
         }
 
@@ -135,7 +137,9 @@ impl Pong {
             self.left_paddle_y += self.paddle_speed * dt;
         }
 
-        let (left_scored, right_scored) = self.ball.update(dt, self.left_paddle_y, self.right_paddle_y);
+        let (left_scored, right_scored) =
+            self.ball
+                .update(dt, self.left_paddle_y, self.right_paddle_y);
 
         if left_scored {
             self.left_score += 1;
@@ -182,9 +186,9 @@ impl Pong {
 
     pub fn get_reward(&self) -> f32 {
         match self.last_scorer {
-            Some(true) => -1.0,  // left scored, bad for right agent
-            Some(false) => 1.0,  // right scored, good for right agent
-            None => 0.0,         // no score yet
+            Some(true) => -1.0, // left scored, bad for right agent
+            Some(false) => 1.0, // right scored, good for right agent
+            None => 0.0,        // no score yet
         }
     }
 
@@ -260,7 +264,11 @@ impl Pong {
     fn draw_score_effects(&self) {
         if let Some(left_scored) = self.last_scorer {
             let fade = self.score_flash_timer;
-            let x = if left_scored { screen_width() / 4.0 } else { 3.0 * screen_width() / 4.0 };
+            let x = if left_scored {
+                screen_width() / 4.0
+            } else {
+                3.0 * screen_width() / 4.0
+            };
 
             for i in 0..config::PARTICLE_COUNT {
                 let angle = (i as f32 / config::PARTICLE_COUNT as f32) * 2.0 * std::f32::consts::PI;
@@ -273,7 +281,7 @@ impl Pong {
                     particle_x,
                     particle_y,
                     size,
-                    Color::new(1.0, 1.0, 0.0, fade)
+                    Color::new(1.0, 1.0, 0.0, fade),
                 );
             }
         }

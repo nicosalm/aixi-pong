@@ -1,11 +1,11 @@
-mod pong;
 mod agent;
 mod common;
 mod config;
+mod pong;
 
-use pong::{Pong, PaddleSide};
 use agent::Agent;
 use common::Action;
+use pong::{PaddleSide, Pong};
 
 use macroquad::prelude::*;
 
@@ -28,7 +28,7 @@ async fn main() {
         match action {
             Action::Up => new_y -= config::PADDLE_SPEED * dt,
             Action::Down => new_y += config::PADDLE_SPEED * dt,
-            Action::Stay => {},
+            Action::Stay => {}
         }
 
         pong.set_paddle(PaddleSide::Right, new_y);

@@ -1,5 +1,5 @@
 pub mod agent;
-pub mod mcts;
 pub mod ctw;
+pub mod mcts;
 
 pub use agent::Agent;
